@@ -3,10 +3,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Beaker, Flame, Zap, Play, Square, RotateCcw, Info, FlaskConical, TestTubes, Container, Settings, X, CheckCircle, AlertTriangle, Download, Camera, FileText, FastForward, Pause } from 'lucide-react';
 import { labReactions } from '@/src/data/chemistryData';
 import { cn } from '@/src/lib/utils';
-import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 type LabMode = 'electrolysis' | 'thermal' | 'hydro' | 'free';
+
+// Inventory Data
+const inventory = {
+  metals: ['K', 'Ba', 'Ca', 'Na', 'Mg', 'Al', 'Zn', 'Fe', 'Ni', 'Sn', 'Pb', 'Cu', 'Ag', 'Pt', 'Au', 'Hg', 'Li'],
+  solutions: ['HCl', 'H2SO4', 'HNO3', 'CuSO4', 'AgNO3', 'NaCl', 'H2O', 'NaOH', 'KOH', 'Ba(OH)2', 'Ca(OH)2', 'BaCl2', 'Na2CO3', 'FeCl2', 'FeCl3', 'MgCl2', 'AlCl3', 'ZnSO4', 'KNO3', 'NH3'],
+  solids: ['CuO', 'Fe2O3', 'Fe3O4', 'ZnO', 'C', 'S', 'P', 'Al2O3', 'CaCO3', 'MnO2', 'KMnO4', 'KClO3', 'Cu(OH)2', 'Fe(OH)3', 'NaCl (rắn)'],
+  indicators: ['Quỳ tím', 'Phenolphtalein', 'Metyl da cam', 'Giấy quỳ'],
+  equipment: [
+    { id: 'beaker', name: 'Cốc thủy tinh', icon: Beaker },
+    { id: 'test_tube', name: 'Ống nghiệm', icon: TestTubes },
+    { id: 'flask', name: 'Bình tam giác', icon: FlaskConical },
+    { id: 'furnace', name: 'Lò nung', icon: Flame },
+    { id: 'crucible', name: 'Chén nung', icon: Container },
+    { id: 'electrolytic_cell', name: 'Bình điện phân', icon: Zap },
+  ]
+};
 
 export default function VirtualLab() {
   const [mode, setMode] = useState<LabMode>('free');
@@ -24,27 +39,11 @@ export default function VirtualLab() {
     time: 30,
     hasMembrane: false,
     temperature: 25,
-    solution: 'CuSO4',
+    solution: '',
     speed: 1,
     isPaused: false
   });
   const [showElectroSettings, setShowElectroSettings] = useState(false);
-
-  // Inventory Data
-  const inventory = {
-    metals: ['K', 'Ba', 'Ca', 'Na', 'Mg', 'Al', 'Zn', 'Fe', 'Ni', 'Sn', 'Pb', 'Cu', 'Ag', 'Pt', 'Au'],
-    solutions: ['HCl', 'H2SO4', 'HNO3', 'CuSO4', 'AgNO3', 'NaCl', 'H2O', 'NaOH', 'KOH', 'BaCl2', 'Na2CO3'],
-    solids: ['CuO', 'Fe2O3', 'ZnO', 'C', 'CO', 'Al2O3', 'CaCO3', 'MnO2'],
-    indicators: ['Quỳ tím', 'Phenolphtalein'],
-    equipment: [
-      { id: 'beaker', name: 'Cốc thủy tinh', icon: Beaker },
-      { id: 'test_tube', name: 'Ống nghiệm', icon: TestTubes },
-      { id: 'flask', name: 'Bình tam giác', icon: FlaskConical },
-      { id: 'furnace', name: 'Lò nung', icon: Flame },
-      { id: 'crucible', name: 'Chén nung', icon: Container },
-      { id: 'electrolytic_cell', name: 'Bình điện phân', icon: Zap },
-    ]
-  };
 
   const chemicalColors: Record<string, string> = {
     'CuSO4': '#3b82f6', // blue
@@ -83,6 +82,27 @@ export default function VirtualLab() {
     'Al2O3': '#ffffff',
     'CaCO3': '#ffffff',
     'MnO2': '#000000',
+    'Hg': '#C0C0C0',
+    'Li': '#C0C0C0',
+    'Ba(OH)2': '#ffffff',
+    'Ca(OH)2': '#ffffff',
+    'FeCl2': '#a7f3d0', // pale green
+    'FeCl3': '#fcd34d', // yellow-brown
+    'MgCl2': '#ffffff',
+    'AlCl3': '#ffffff',
+    'ZnSO4': '#ffffff',
+    'KNO3': '#ffffff',
+    'NH3': '#ffffff',
+    'Fe3O4': '#000000', // black
+    'S': '#fef08a', // yellow
+    'P': '#ef4444', // red phosphorus
+    'KMnO4': '#8b5cf6', // dark purple solid
+    'KClO3': '#ffffff',
+    'Cu(OH)2': '#60a5fa', // light blue solid
+    'Fe(OH)3': '#b45309', // reddish brown solid
+    'NaCl (rắn)': '#ffffff',
+    'Metyl da cam': '#f97316', // orange
+    'Giấy quỳ': '#d8b4e2', // light purple paper
   };
 
   const getChemicalColor = (item: string) => {
@@ -270,17 +290,17 @@ export default function VirtualLab() {
     if (!labRef.current) return;
     try {
       addLog('Đang tạo báo cáo PDF...');
-      const canvas = await html2canvas(labRef.current, {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(labRef.current, {
         backgroundColor: '#0f172a', // slate-900
-        scale: 2,
+        pixelRatio: 2,
       });
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'px',
-        format: [canvas.width, canvas.height]
+        format: [labRef.current.offsetWidth * 2, labRef.current.offsetHeight * 2]
       });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, labRef.current.offsetWidth * 2, labRef.current.offsetHeight * 2);
       pdf.save(`Bao_Cao_Thi_Nghiem_${new Date().getTime()}.pdf`);
       addLog('Đã xuất báo cáo PDF thành công.');
     } catch (error) {
@@ -293,12 +313,13 @@ export default function VirtualLab() {
     if (!labRef.current) return;
     try {
       addLog('Đang chụp màn hình...');
-      const canvas = await html2canvas(labRef.current, {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(labRef.current, {
         backgroundColor: '#0f172a',
       });
       const link = document.createElement('a');
       link.download = `Chup_Man_Hinh_Lab_${new Date().getTime()}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
       addLog('Đã lưu ảnh chụp màn hình.');
     } catch (error) {
@@ -308,9 +329,9 @@ export default function VirtualLab() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-slate-900 text-slate-200 overflow-hidden" ref={labRef}>
+    <div className="h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-slate-900 text-slate-200 overflow-y-auto md:overflow-hidden" ref={labRef}>
       {/* Left Panel: Inventory */}
-      <div className="w-full md:w-80 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
+      <div className="w-full md:w-80 bg-slate-800 border-b md:border-b-0 md:border-r border-slate-700 flex flex-col h-[45vh] md:h-full shrink-0">
         <div className="p-4 border-b border-slate-700 bg-slate-800/50">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Beaker className="w-5 h-5 text-chem-blue" /> Kho hóa chất
@@ -347,9 +368,32 @@ export default function VirtualLab() {
 
           {/* Chemicals Selection */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Kim loại & Rắn</h3>
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Kim loại</h3>
             <div className="flex flex-wrap gap-2">
-              {[...inventory.metals, ...inventory.solids].map(item => (
+              {inventory.metals.map(item => (
+                <button
+                  key={item}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('text/plain', item)}
+                  onClick={() => handleSelectReactant(item)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-mono border transition-all duration-200 cursor-grab active:cursor-grabbing",
+                    selectedReactants.includes(item)
+                      ? "bg-chem-gold/20 border-chem-gold text-chem-gold"
+                      : "bg-slate-700/50 border-slate-600 text-slate-300 hover:bg-slate-700"
+                  )}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getChemicalColor(item) }} />
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Hợp chất rắn</h3>
+            <div className="flex flex-wrap gap-2">
+              {inventory.solids.map(item => (
                 <button
                   key={item}
                   draggable
@@ -419,10 +463,10 @@ export default function VirtualLab() {
       </div>
 
       {/* Center Panel: Workbench */}
-      <div className="flex-1 flex flex-col relative bg-slate-950">
+      <div className="flex-1 flex flex-col relative bg-slate-950 min-h-[60vh] md:min-h-0">
         {/* Top Bar */}
-        <div className="h-14 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50">
-          <div className="flex items-center gap-4">
+        <div className="h-auto md:h-14 py-2 md:py-0 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between px-4 md:px-6 bg-slate-900/50 gap-2 md:gap-0">
+          <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto overflow-x-auto custom-scrollbar pb-1 md:pb-0">
             <span className="text-sm font-medium text-slate-400">Chế độ:</span>
             <select 
               value={mode} 
@@ -462,7 +506,7 @@ export default function VirtualLab() {
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full md:w-auto justify-end border-t border-slate-800 md:border-t-0 pt-2 md:pt-0 mt-1 md:mt-0">
             <button 
               onClick={handleExportPDF}
               className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
@@ -502,7 +546,7 @@ export default function VirtualLab() {
           {/* Workbench Setup */}
           <div 
             className={cn(
-              "relative z-10 flex flex-col items-center justify-center w-full max-w-2xl aspect-video bg-slate-800/40 rounded-3xl border backdrop-blur-sm shadow-2xl transition-colors duration-300",
+              "relative z-10 flex flex-col items-center justify-center w-full max-w-2xl aspect-square md:aspect-video bg-slate-800/40 rounded-3xl border backdrop-blur-sm shadow-2xl transition-colors duration-300",
               isDraggingOver ? "border-chem-blue bg-slate-800/60" : "border-slate-700/50"
             )}
             onDragOver={handleDragOver}
@@ -523,7 +567,40 @@ export default function VirtualLab() {
                 {equipment === 'flask' && <FlaskVisual isRunning={isRunning} reaction={currentReaction} reactants={selectedReactants} />}
                 {equipment === 'furnace' && <FurnaceVisual isRunning={isRunning} reaction={currentReaction} reactants={selectedReactants} />}
                 {equipment === 'crucible' && <CrucibleVisual isRunning={isRunning} reaction={currentReaction} reactants={selectedReactants} />}
-                {equipment === 'electrolytic_cell' && <ElectrolysisVisual isRunning={isRunning} reaction={currentReaction} reactants={selectedReactants} settings={electroSettings} onOpenSettings={() => setShowElectroSettings(true)} />}
+                {equipment === 'electrolytic_cell' && (
+                  <ElectrolysisVisual 
+                    isRunning={isRunning} 
+                    reaction={currentReaction} 
+                    reactants={selectedReactants} 
+                    settings={electroSettings} 
+                    onOpenSettings={() => setShowElectroSettings(true)}
+                    onDropAnode={(chem: string) => {
+                      if (inventory.metals.includes(chem) || chem === 'C') {
+                        setElectroSettings(prev => ({ ...prev, anode: chem === 'C' ? 'Graphite' : chem }));
+                        addLog(`Đã thay đổi Anode thành ${chem === 'C' ? 'Graphite' : chem}`);
+                      } else {
+                        addLog(`Không thể dùng ${chem} làm điện cực`);
+                      }
+                    }}
+                    onDropCathode={(chem: string) => {
+                      if (inventory.metals.includes(chem) || chem === 'C') {
+                        setElectroSettings(prev => ({ ...prev, cathode: chem === 'C' ? 'Graphite' : chem }));
+                        addLog(`Đã thay đổi Cathode thành ${chem === 'C' ? 'Graphite' : chem}`);
+                      } else {
+                        addLog(`Không thể dùng ${chem} làm điện cực`);
+                      }
+                    }}
+                    onDropSolution={(chem: string) => {
+                      if (inventory.solutions.includes(chem)) {
+                        setElectroSettings(prev => ({ ...prev, solution: chem }));
+                        addLog(`Đã thay đổi dung dịch thành ${chem}`);
+                      } else {
+                        addLog(`Không thể dùng ${chem} làm dung dịch điện phân`);
+                      }
+                    }}
+                  />
+                )}
+                {equipment === 'electrolytic_cell' && isRunning && <ElectrolysisEquations settings={electroSettings} />}
               </div>
             )}
 
@@ -568,8 +645,8 @@ export default function VirtualLab() {
         </div>
 
         {/* Bottom Panel: Logs & Info */}
-        <div className="h-48 border-t border-slate-800 bg-slate-900 flex">
-          <div className="flex-1 p-4 border-r border-slate-800 flex flex-col">
+        <div className="flex flex-col md:flex-row border-t border-slate-800 bg-slate-900 md:h-48 shrink-0">
+          <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col min-h-[200px] md:min-h-0">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-slate-400 flex items-center gap-2">
                 <Info className="w-4 h-4" /> Thông tin phản ứng
@@ -591,7 +668,7 @@ export default function VirtualLab() {
               </div>
             )}
           </div>
-          <div className="w-1/3 p-4 flex flex-col">
+          <div className="w-full md:w-1/3 p-4 flex flex-col min-h-[200px] md:min-h-0">
             <h3 className="text-sm font-semibold text-slate-400 mb-2">Nhật ký (Logs)</h3>
             <div className="flex-1 bg-black/50 rounded-xl p-3 border border-slate-800 overflow-y-auto font-mono text-xs space-y-2">
               {logs.map((log, i) => (
@@ -645,31 +722,150 @@ const checkCompatibility = (settings: any) => {
   };
 };
 
-function ElectrolysisSettingsPanel({ settings, setSettings, onClose }: any) {
+const getElectrolysisDetails = (settings: any) => {
+  const { anode, cathode, solution, hasMembrane } = settings;
+  
+  let anodeEq = '';
+  let cathodeEq = '';
+  let overallEq = '';
+  let explanation = '';
+
+  if (!solution) {
+    return {
+      anodeEq: '...',
+      cathodeEq: '...',
+      overallEq: 'Chưa có dung dịch',
+      explanation: 'Vui lòng thêm dung dịch điện phân vào bình để bắt đầu.'
+    };
+  }
+
+  if (solution === 'NaCl (aq)') {
+    if (hasMembrane) {
+      anodeEq = '2Cl⁻ → Cl₂↑ + 2e⁻';
+      cathodeEq = '2H₂O + 2e⁻ → H₂↑ + 2OH⁻';
+      overallEq = '2NaCl + 2H₂O → 2NaOH + H₂↑ + Cl₂↑';
+      explanation = `Tại Anode (+): Ion Cl⁻ di chuyển về cực dương, nhường electron tạo khí Clo.\nTại Cathode (-): Phân tử H₂O nhận electron tạo khí Hydro và ion OH⁻.\nMàng ngăn xốp ngăn không cho Cl₂ tác dụng với NaOH tạo nước Javel.`;
+    } else {
+      anodeEq = '2Cl⁻ → Cl₂↑ + 2e⁻';
+      cathodeEq = '2H₂O + 2e⁻ → H₂↑ + 2OH⁻';
+      overallEq = 'NaCl + H₂O → NaClO + H₂↑';
+      explanation = `Tại Anode (+): 2Cl⁻ → Cl₂↑ + 2e⁻\nTại Cathode (-): 2H₂O + 2e⁻ → H₂↑ + 2OH⁻\nDo không có màng ngăn, Cl₂ tác dụng với NaOH: Cl₂ + 2NaOH → NaCl + NaClO + H₂O (Nước Javel).`;
+    }
+  } else if (solution === 'CuSO4') {
+    if (anode === 'Copper') {
+      anodeEq = 'Cu → Cu²⁺ + 2e⁻';
+      cathodeEq = 'Cu²⁺ + 2e⁻ → Cu↓';
+      overallEq = 'Cu(anode) → Cu(cathode)';
+      explanation = `Hiện tượng dương cực tan: Anode bằng Đồng bị oxi hóa thành ion Cu²⁺ tan vào dung dịch. Tại Cathode, ion Cu²⁺ nhận electron tạo thành Đồng kim loại bám vào điện cực. Nồng độ CuSO₄ trong dung dịch không đổi.`;
+    } else {
+      anodeEq = '2H₂O → O₂↑ + 4H⁺ + 4e⁻';
+      cathodeEq = '2Cu²⁺ + 4e⁻ → 2Cu↓';
+      overallEq = '2CuSO₄ + 2H₂O → 2Cu↓ + 2H₂SO₄ + O₂↑';
+      explanation = `Tại Anode (+): H₂O bị oxi hóa thay vì SO₄²⁻, tạo khí O₂ và H⁺.\nTại Cathode (-): Ion Cu²⁺ dễ bị khử hơn H₂O, nhận electron tạo Đồng kim loại bám vào điện cực.`;
+    }
+  } else if (solution === 'H2O+H2SO4') {
+    anodeEq = '2H₂O → O₂↑ + 4H⁺ + 4e⁻';
+    cathodeEq = '4H⁺ + 4e⁻ → 2H₂↑';
+    overallEq = '2H₂O → 2H₂↑ + O₂↑';
+    explanation = `Điện phân nước có xúc tác H₂SO₄.\nTại Anode (+): H₂O bị oxi hóa tạo khí O₂.\nTại Cathode (-): H⁺ (từ axit và nước) bị khử tạo khí H₂.\nThể tích khí H₂ sinh ra gấp đôi thể tích khí O₂.`;
+  } else if (solution === 'AgNO3') {
+    if (anode === 'Silver') {
+      anodeEq = 'Ag → Ag⁺ + e⁻';
+      cathodeEq = 'Ag⁺ + e⁻ → Ag↓';
+      overallEq = 'Ag(anode) → Ag(cathode)';
+      explanation = `Hiện tượng dương cực tan với Bạc.`;
+    } else {
+      anodeEq = '2H₂O → O₂↑ + 4H⁺ + 4e⁻';
+      cathodeEq = '4Ag⁺ + 4e⁻ → 4Ag↓';
+      overallEq = '4AgNO₃ + 2H₂O → 4Ag↓ + 4HNO₃ + O₂↑';
+      explanation = `Tại Anode (+): H₂O bị oxi hóa tạo khí O₂.\nTại Cathode (-): Ag⁺ bị khử tạo Bạc kim loại.`;
+    }
+  } else if (solution === 'NaCl (molten)') {
+    anodeEq = '2Cl⁻ → Cl₂↑ + 2e⁻';
+    cathodeEq = '2Na⁺ + 2e⁻ → 2Na';
+    overallEq = '2NaCl → 2Na + Cl₂↑';
+    explanation = `Điện phân nóng chảy NaCl.\nTại Anode (+): Cl⁻ nhường e tạo khí Clo.\nTại Cathode (-): Na⁺ nhận e tạo kim loại Natri lỏng.`;
+  } else if (solution === 'HCl') {
+    anodeEq = '2Cl⁻ → Cl₂↑ + 2e⁻';
+    cathodeEq = '2H⁺ + 2e⁻ → H₂↑';
+    overallEq = '2HCl → H₂↑ + Cl₂↑';
+    explanation = `Tại Anode (+): Cl⁻ nhường e tạo khí Clo.\nTại Cathode (-): H⁺ nhận e tạo khí Hydro.`;
+  } else if (solution === 'Pb(NO3)2') {
+    anodeEq = '2H₂O → O₂↑ + 4H⁺ + 4e⁻';
+    cathodeEq = '2Pb²⁺ + 4e⁻ → 2Pb↓';
+    overallEq = '2Pb(NO₃)₂ + 2H₂O → 2Pb↓ + 4HNO₃ + O₂↑';
+    explanation = `Tại Anode (+): H₂O bị oxi hóa tạo khí O₂.\nTại Cathode (-): Pb²⁺ bị khử tạo Chì kim loại.`;
+  } else {
+    anodeEq = 'Phụ thuộc vào anion và điện cực';
+    cathodeEq = 'Phụ thuộc vào cation';
+    overallEq = `Điện phân dung dịch ${solution}`;
+    explanation = `Hệ thống chưa có dữ liệu chi tiết cho phản ứng điện phân dung dịch ${solution} với điện cực ${anode}/${cathode}.`;
+  }
+
+  return { anodeEq, cathodeEq, overallEq, explanation };
+};
+
+const ElectrolysisEquations = React.memo(function ElectrolysisEquations({ settings }: { settings: any }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const details = getElectrolysisDetails(settings);
+
+  return (
+    <div className="absolute top-4 left-4 right-4 md:right-auto md:w-72 bg-slate-900/90 border border-slate-700 rounded-xl p-4 shadow-2xl z-50 backdrop-blur-md">
+      <h4 className="text-sm font-bold text-chem-blue mb-3 border-b border-slate-700 pb-2">Phương trình điện phân</h4>
+      <div className="space-y-3 text-xs font-mono">
+        <div>
+          <span className="text-red-400 font-bold">Anode (+):</span>
+          <div className="text-slate-300 mt-1 pl-2 border-l-2 border-red-500/30">{details.anodeEq}</div>
+        </div>
+        <div>
+          <span className="text-blue-400 font-bold">Cathode (-):</span>
+          <div className="text-slate-300 mt-1 pl-2 border-l-2 border-blue-500/30">{details.cathodeEq}</div>
+        </div>
+        <div className="pt-2 border-t border-slate-700">
+          <span className="text-green-400 font-bold">Tổng quát:</span>
+          <div className="text-white mt-1 pl-2 border-l-2 border-green-500/30 font-bold">{details.overallEq}</div>
+        </div>
+      </div>
+      <button 
+        onClick={() => setShowDetails(!showDetails)}
+        className="mt-4 text-[11px] text-slate-400 hover:text-white underline w-full text-center transition-colors"
+      >
+        {showDetails ? 'Ẩn chi tiết' : 'Chi tiết phương trình'}
+      </button>
+      
+      <AnimatePresence>
+        {showDetails && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mt-3 text-[11px] text-slate-300 whitespace-pre-line overflow-hidden leading-relaxed bg-black/30 p-3 rounded-lg border border-slate-700/50"
+          >
+            {details.explanation}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+const ElectrolysisSettingsPanel = React.memo(function ElectrolysisSettingsPanel({ settings, setSettings, onClose }: any) {
   const anodes = [
-    { id: 'Graphite', name: 'Graphite (C)', color: 'bg-slate-800', type: 'Trơ' },
-    { id: 'Platinum', name: 'Platinum (Pt)', color: 'bg-slate-300', type: 'Trơ' },
-    { id: 'Copper', name: 'Copper (Cu)', color: 'bg-orange-600', type: 'Hoạt động' },
-    { id: 'Iron', name: 'Iron (Fe)', color: 'bg-slate-500', type: 'Hoạt động' },
-    { id: 'Nickel', name: 'Nickel (Ni)', color: 'bg-slate-400', type: 'Hoạt động' },
-    { id: 'Silver', name: 'Silver (Ag)', color: 'bg-gray-200', type: 'Hoạt động' },
-    { id: 'Gold', name: 'Gold (Au)', color: 'bg-yellow-500', type: 'Trơ' },
+    { id: 'Graphite', name: 'Graphite (C)', type: 'Trơ' },
+    ...inventory.metals.map(m => ({ id: m, name: `${m} (Kim loại)`, type: ['Pt', 'Au'].includes(m) ? 'Trơ' : 'Hoạt động' }))
   ];
 
   const cathodes = [
-    { id: 'Graphite', name: 'Graphite (C)', color: 'bg-slate-800' },
-    { id: 'Platinum', name: 'Platinum (Pt)', color: 'bg-slate-300' },
-    { id: 'Copper', name: 'Copper (Cu)', color: 'bg-orange-600' },
-    { id: 'Iron', name: 'Iron (Fe)', color: 'bg-slate-500' },
-    { id: 'Zinc', name: 'Zinc (Zn)', color: 'bg-teal-600' },
-    { id: 'Magnesium', name: 'Magnesium (Mg)', color: 'bg-slate-200' },
-    { id: 'Aluminum', name: 'Aluminum (Al)', color: 'bg-slate-300' },
-    { id: 'Nickel', name: 'Nickel (Ni)', color: 'bg-slate-400' },
+    { id: 'Graphite', name: 'Graphite (C)' },
+    ...inventory.metals.map(m => ({ id: m, name: `${m} (Kim loại)` }))
   ];
 
   const solutions = [
-    'H2O+H2SO4', 'NaCl (aq)', 'NaCl (molten)', 'CuSO4', 'AgNO3', 'HCl', 'Pb(NO3)2'
+    'H2O+H2SO4', 'NaCl (aq)', 'NaCl (molten)', ...inventory.solutions
   ];
+
+  // Remove duplicates
+  const uniqueSolutions = Array.from(new Set(solutions));
 
   const compatibility = checkCompatibility(settings);
 
@@ -678,7 +874,7 @@ function ElectrolysisSettingsPanel({ settings, setSettings, onClose }: any) {
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
-      className="absolute top-0 right-0 bottom-0 w-96 bg-slate-800 border-l border-slate-700 z-50 shadow-2xl flex flex-col"
+      className="absolute top-0 right-0 bottom-0 w-full md:w-96 bg-slate-800 border-l border-slate-700 z-50 shadow-2xl flex flex-col"
     >
       <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
         <h3 className="font-bold text-white flex items-center gap-2">
@@ -731,7 +927,8 @@ function ElectrolysisSettingsPanel({ settings, setSettings, onClose }: any) {
             onChange={(e) => setSettings({...settings, solution: e.target.value})}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm focus:border-chem-blue outline-none"
           >
-            {solutions.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="">-- Chọn dung dịch --</option>
+            {uniqueSolutions.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
 
@@ -765,19 +962,20 @@ function ElectrolysisSettingsPanel({ settings, setSettings, onClose }: any) {
       </div>
     </motion.div>
   );
-}
+});
 
 // --- Visual Components for Equipment ---
 
-function BeakerVisual({ isRunning, reaction, reactants }: any) {
-  const hasLiquid = reactants.some((r: string) => ['HCl', 'H2SO4', 'HNO3', 'CuSO4', 'AgNO3', 'NaCl', 'H2O', 'NaOH', 'KOH', 'BaCl2', 'Na2CO3'].includes(r));
+const BeakerVisual = React.memo(function BeakerVisual({ isRunning, reaction, reactants }: any) {
+  const hasLiquid = reactants.some((r: string) => inventory.solutions.includes(r));
   
   // Determine color based on reactants and indicators
   const getLiquidColor = () => {
     let isAcid = reactants.includes('HCl') || reactants.includes('H2SO4') || reactants.includes('HNO3');
-    let isBase = reactants.includes('NaOH') || reactants.includes('KOH') || reactants.includes('Na2CO3');
-    let hasQuyTim = reactants.includes('Quỳ tím');
+    let isBase = reactants.includes('NaOH') || reactants.includes('KOH') || reactants.includes('Ba(OH)2') || reactants.includes('Ca(OH)2') || reactants.includes('Na2CO3') || reactants.includes('NH3');
+    let hasQuyTim = reactants.includes('Quỳ tím') || reactants.includes('Giấy quỳ');
     let hasPhenol = reactants.includes('Phenolphtalein');
+    let hasMetyl = reactants.includes('Metyl da cam');
 
     if (hasQuyTim) {
       if (isAcid) return 'rgba(239, 68, 68, 0.6)'; // Red
@@ -788,8 +986,16 @@ function BeakerVisual({ isRunning, reaction, reactants }: any) {
       if (isBase) return 'rgba(236, 72, 153, 0.6)'; // Pink
       return 'rgba(255, 255, 255, 0.1)'; // Colorless
     }
+    if (hasMetyl) {
+      if (isAcid) return 'rgba(239, 68, 68, 0.6)'; // Red
+      if (isBase) return 'rgba(250, 204, 21, 0.6)'; // Yellow
+      return 'rgba(249, 115, 22, 0.6)'; // Orange
+    }
 
     if (reactants.includes('CuSO4')) return 'rgba(59, 130, 246, 0.6)'; // Blue
+    if (reactants.includes('FeCl2')) return 'rgba(167, 243, 208, 0.6)'; // Pale green
+    if (reactants.includes('FeCl3')) return 'rgba(253, 211, 77, 0.6)'; // Yellow-brown
+    if (reactants.includes('KMnO4')) return 'rgba(139, 92, 246, 0.6)'; // Purple
     
     // Default liquid color
     return 'rgba(165, 243, 252, 0.2)'; // cyan-200/20
@@ -858,21 +1064,22 @@ function BeakerVisual({ isRunning, reaction, reactants }: any) {
       </AnimatePresence>
 
       {/* Solid Reactant */}
-      {reactants.some((r: string) => ['K', 'Ba', 'Ca', 'Na', 'Mg', 'Al', 'Zn', 'Fe', 'Ni', 'Sn', 'Pb', 'Cu', 'Ag', 'Pt', 'Au', 'CuO', 'Fe2O3', 'ZnO', 'C', 'Al2O3', 'CaCO3', 'MnO2'].includes(r)) && (
+      {reactants.some((r: string) => inventory.metals.includes(r) || inventory.solids.includes(r)) && (
         <div className="absolute bottom-2 w-16 h-4 bg-slate-500 rounded-full z-15 blur-[1px]"></div>
       )}
     </div>
   );
-}
+});
 
-function TestTubeVisual({ isRunning, reaction, reactants }: any) {
-  const hasLiquid = reactants.some((r: string) => ['HCl', 'H2SO4', 'HNO3', 'CuSO4', 'AgNO3', 'NaCl', 'H2O', 'NaOH', 'KOH', 'BaCl2', 'Na2CO3'].includes(r));
+const TestTubeVisual = React.memo(function TestTubeVisual({ isRunning, reaction, reactants }: any) {
+  const hasLiquid = reactants.some((r: string) => inventory.solutions.includes(r));
   
   const getLiquidColor = () => {
     let isAcid = reactants.includes('HCl') || reactants.includes('H2SO4') || reactants.includes('HNO3');
-    let isBase = reactants.includes('NaOH') || reactants.includes('KOH') || reactants.includes('Na2CO3');
-    let hasQuyTim = reactants.includes('Quỳ tím');
+    let isBase = reactants.includes('NaOH') || reactants.includes('KOH') || reactants.includes('Ba(OH)2') || reactants.includes('Ca(OH)2') || reactants.includes('Na2CO3') || reactants.includes('NH3');
+    let hasQuyTim = reactants.includes('Quỳ tím') || reactants.includes('Giấy quỳ');
     let hasPhenol = reactants.includes('Phenolphtalein');
+    let hasMetyl = reactants.includes('Metyl da cam');
 
     if (hasQuyTim) {
       if (isAcid) return 'rgba(239, 68, 68, 0.6)';
@@ -883,7 +1090,15 @@ function TestTubeVisual({ isRunning, reaction, reactants }: any) {
       if (isBase) return 'rgba(236, 72, 153, 0.6)';
       return 'rgba(255, 255, 255, 0.1)';
     }
+    if (hasMetyl) {
+      if (isAcid) return 'rgba(239, 68, 68, 0.6)';
+      if (isBase) return 'rgba(250, 204, 21, 0.6)';
+      return 'rgba(249, 115, 22, 0.6)';
+    }
     if (reactants.includes('CuSO4')) return 'rgba(59, 130, 246, 0.6)';
+    if (reactants.includes('FeCl2')) return 'rgba(167, 243, 208, 0.6)';
+    if (reactants.includes('FeCl3')) return 'rgba(253, 211, 77, 0.6)';
+    if (reactants.includes('KMnO4')) return 'rgba(139, 92, 246, 0.6)';
     return 'rgba(165, 243, 252, 0.2)';
   };
 
@@ -935,21 +1150,22 @@ function TestTubeVisual({ isRunning, reaction, reactants }: any) {
       </AnimatePresence>
 
       {/* Solid Reactant */}
-      {reactants.some((r: string) => ['K', 'Ba', 'Ca', 'Na', 'Mg', 'Al', 'Zn', 'Fe', 'Ni', 'Sn', 'Pb', 'Cu', 'Ag', 'Pt', 'Au', 'CuO', 'Fe2O3', 'ZnO', 'C', 'Al2O3', 'CaCO3', 'MnO2'].includes(r)) && (
+      {reactants.some((r: string) => inventory.metals.includes(r) || inventory.solids.includes(r)) && (
         <div className="absolute bottom-2 w-8 h-3 bg-slate-500 rounded-full z-15 blur-[1px]"></div>
       )}
     </div>
   );
-}
+});
 
-function FlaskVisual({ isRunning, reaction, reactants }: any) {
-  const hasLiquid = reactants.some((r: string) => ['HCl', 'H2SO4', 'HNO3', 'CuSO4', 'AgNO3', 'NaCl', 'H2O', 'NaOH', 'KOH', 'BaCl2', 'Na2CO3'].includes(r));
+const FlaskVisual = React.memo(function FlaskVisual({ isRunning, reaction, reactants }: any) {
+  const hasLiquid = reactants.some((r: string) => inventory.solutions.includes(r));
   
   const getLiquidColor = () => {
     let isAcid = reactants.includes('HCl') || reactants.includes('H2SO4') || reactants.includes('HNO3');
-    let isBase = reactants.includes('NaOH') || reactants.includes('KOH') || reactants.includes('Na2CO3');
-    let hasQuyTim = reactants.includes('Quỳ tím');
+    let isBase = reactants.includes('NaOH') || reactants.includes('KOH') || reactants.includes('Ba(OH)2') || reactants.includes('Ca(OH)2') || reactants.includes('Na2CO3') || reactants.includes('NH3');
+    let hasQuyTim = reactants.includes('Quỳ tím') || reactants.includes('Giấy quỳ');
     let hasPhenol = reactants.includes('Phenolphtalein');
+    let hasMetyl = reactants.includes('Metyl da cam');
 
     if (hasQuyTim) {
       if (isAcid) return 'rgba(239, 68, 68, 0.6)';
@@ -960,7 +1176,15 @@ function FlaskVisual({ isRunning, reaction, reactants }: any) {
       if (isBase) return 'rgba(236, 72, 153, 0.6)';
       return 'rgba(255, 255, 255, 0.1)';
     }
+    if (hasMetyl) {
+      if (isAcid) return 'rgba(239, 68, 68, 0.6)';
+      if (isBase) return 'rgba(250, 204, 21, 0.6)';
+      return 'rgba(249, 115, 22, 0.6)';
+    }
     if (reactants.includes('CuSO4')) return 'rgba(59, 130, 246, 0.6)';
+    if (reactants.includes('FeCl2')) return 'rgba(167, 243, 208, 0.6)';
+    if (reactants.includes('FeCl3')) return 'rgba(253, 211, 77, 0.6)';
+    if (reactants.includes('KMnO4')) return 'rgba(139, 92, 246, 0.6)';
     return 'rgba(165, 243, 252, 0.2)';
   };
 
@@ -1005,14 +1229,14 @@ function FlaskVisual({ isRunning, reaction, reactants }: any) {
       </AnimatePresence>
 
       {/* Solid Reactant */}
-      {reactants.some((r: string) => ['K', 'Ba', 'Ca', 'Na', 'Mg', 'Al', 'Zn', 'Fe', 'Ni', 'Sn', 'Pb', 'Cu', 'Ag', 'Pt', 'Au', 'CuO', 'Fe2O3', 'ZnO', 'C', 'Al2O3', 'CaCO3', 'MnO2'].includes(r)) && (
+      {reactants.some((r: string) => inventory.metals.includes(r) || inventory.solids.includes(r)) && (
         <div className="absolute bottom-2 w-20 h-4 bg-slate-500 rounded-full z-15 blur-[1px]"></div>
       )}
     </div>
   );
-}
+});
 
-function CrucibleVisual({ isRunning, reaction, reactants }: any) {
+const CrucibleVisual = React.memo(function CrucibleVisual({ isRunning, reaction, reactants }: any) {
   return (
     <div className="relative w-32 h-24 flex flex-col items-center justify-end">
       {/* Crucible Body */}
@@ -1043,9 +1267,9 @@ function CrucibleVisual({ isRunning, reaction, reactants }: any) {
       )}
     </div>
   );
-}
+});
 
-function FurnaceVisual({ isRunning, reaction }: any) {
+const FurnaceVisual = React.memo(function FurnaceVisual({ isRunning, reaction }: any) {
   return (
     <div className="relative w-64 h-64 flex flex-col items-center justify-end">
       {/* Furnace Body */}
@@ -1076,26 +1300,39 @@ function FurnaceVisual({ isRunning, reaction }: any) {
       </div>
     </div>
   );
-}
+});
 
-function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSettings }: any) {
+const ElectrolysisVisual = React.memo(function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSettings, onDropAnode, onDropCathode, onDropSolution }: any) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [dragOverAnode, setDragOverAnode] = useState(false);
+  const [dragOverCathode, setDragOverCathode] = useState(false);
+  const [dragOverSolution, setDragOverSolution] = useState(false);
+  const details = getElectrolysisDetails(settings);
+
   const getElectrodeColor = (id: string) => {
     const colors: Record<string, string> = {
-      'Graphite': 'bg-slate-800',
-      'Platinum': 'bg-slate-300',
-      'Copper': 'bg-orange-600',
-      'Iron': 'bg-slate-500',
-      'Nickel': 'bg-slate-400',
-      'Silver': 'bg-gray-200',
-      'Gold': 'bg-yellow-500',
-      'Zinc': 'bg-teal-600',
-      'Magnesium': 'bg-slate-200',
-      'Aluminum': 'bg-slate-300',
+      'Graphite': 'bg-slate-800', 'C': 'bg-slate-800',
+      'Platinum': 'bg-slate-300', 'Pt': 'bg-slate-300',
+      'Copper': 'bg-orange-600', 'Cu': 'bg-orange-600',
+      'Iron': 'bg-slate-500', 'Fe': 'bg-slate-500',
+      'Nickel': 'bg-slate-400', 'Ni': 'bg-slate-400',
+      'Silver': 'bg-gray-200', 'Ag': 'bg-gray-200',
+      'Gold': 'bg-yellow-500', 'Au': 'bg-yellow-500',
+      'Zinc': 'bg-teal-600', 'Zn': 'bg-teal-600',
+      'Magnesium': 'bg-slate-200', 'Mg': 'bg-slate-200',
+      'Aluminum': 'bg-slate-300', 'Al': 'bg-slate-300',
+      'Lead': 'bg-slate-600', 'Pb': 'bg-slate-600',
+      'Tin': 'bg-slate-400', 'Sn': 'bg-slate-400',
+      'Sodium': 'bg-slate-100', 'Na': 'bg-slate-100',
+      'Potassium': 'bg-slate-100', 'K': 'bg-slate-100',
+      'Calcium': 'bg-slate-200', 'Ca': 'bg-slate-200',
+      'Barium': 'bg-slate-200', 'Ba': 'bg-slate-200',
     };
     return colors[id] || 'bg-slate-800';
   };
 
   const getSolutionColor = (id: string) => {
+    if (!id) return 'transparent';
     const colors: Record<string, string> = {
       'H2O+H2SO4': 'rgba(6, 182, 212, 0.2)', // cyan-500/20
       'NaCl (aq)': 'rgba(165, 243, 252, 0.2)', // cyan-200/20
@@ -1104,6 +1341,14 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
       'AgNO3': 'rgba(203, 213, 225, 0.3)', // slate-300/30
       'HCl': 'rgba(207, 250, 254, 0.2)', // cyan-100/20
       'Pb(NO3)2': 'rgba(226, 232, 240, 0.3)', // slate-200/30
+      'H2SO4': 'rgba(6, 182, 212, 0.2)',
+      'HNO3': 'rgba(207, 250, 254, 0.2)',
+      'NaCl': 'rgba(165, 243, 252, 0.2)',
+      'H2O': 'rgba(255, 255, 255, 0.1)',
+      'NaOH': 'rgba(255, 255, 255, 0.1)',
+      'KOH': 'rgba(255, 255, 255, 0.1)',
+      'BaCl2': 'rgba(255, 255, 255, 0.1)',
+      'Na2CO3': 'rgba(255, 255, 255, 0.1)',
     };
     
     let baseColor = colors[id] || 'rgba(6, 182, 212, 0.2)';
@@ -1127,6 +1372,7 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
   };
 
   const hasBubbles = (solution: string, electrode: 'anode' | 'cathode') => {
+    if (!solution) return false;
     if (solution === 'H2O+H2SO4') return true;
     if (solution === 'NaCl (aq)') return true;
     if (solution === 'HCl') return true;
@@ -1135,6 +1381,7 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
   };
 
   const hasPlating = (solution: string) => {
+    if (!solution) return false;
     return ['CuSO4', 'AgNO3', 'Pb(NO3)2'].includes(solution);
   };
 
@@ -1147,10 +1394,10 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
 
   const anodeColor = getElectrodeColor(settings?.anode || 'Graphite');
   const cathodeColor = getElectrodeColor(settings?.cathode || 'Graphite');
-  const solutionColor = getSolutionColor(settings?.solution || 'CuSO4');
+  const solutionColor = getSolutionColor(settings?.solution);
 
   return (
-    <div className="relative w-80 h-80 flex flex-col items-center justify-end">
+    <div className="relative w-[280px] h-[280px] md:w-80 md:h-80 flex flex-col items-center justify-end">
       {/* Settings Button */}
       <button onClick={onOpenSettings} className="absolute -top-4 -right-4 p-2 bg-slate-700 rounded-full text-white hover:bg-slate-600 z-50 shadow-lg transition-transform hover:scale-110">
         <Settings className="w-5 h-5" />
@@ -1161,43 +1408,72 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
       
       {/* Liquid */}
       <div 
-        className="absolute bottom-1 w-[calc(100%-8px)] h-[70%] rounded-b-[20px] z-10 transition-colors duration-1000"
-        style={{ backgroundColor: solutionColor }}
-      >
-        <div className="absolute top-0 w-full h-4 -mt-2 bg-white/20 rounded-[50%]"></div>
-        
-        {/* Membrane */}
-        {settings?.hasMembrane && (
-          <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-1 bg-white/30 border-x border-white/50 border-dashed"></div>
+        className={cn(
+          "absolute bottom-1 w-[calc(100%-8px)] h-[70%] rounded-b-[20px] z-10 overflow-hidden", 
+          dragOverSolution && "ring-4 ring-chem-blue",
+          !settings?.solution && "border-2 border-dashed border-slate-600 bg-white/5"
         )}
+        onDragOver={(e) => { e.preventDefault(); setDragOverSolution(true); }}
+        onDragLeave={() => setDragOverSolution(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOverSolution(false);
+          const chem = e.dataTransfer.getData('text/plain');
+          if (chem && onDropSolution) onDropSolution(chem);
+        }}
+      >
+        <AnimatePresence>
+          {settings?.solution && (
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: '100%' }}
+              className="absolute bottom-0 w-full rounded-b-[20px] transition-colors duration-1000"
+              style={{ backgroundColor: solutionColor }}
+            >
+              <div className="absolute top-0 w-full h-4 -mt-2 bg-white/20 rounded-[50%] pointer-events-none"></div>
+              
+              {/* Membrane */}
+              {settings?.hasMembrane && (
+                <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-1 bg-white/30 border-x border-white/50 border-dashed pointer-events-none"></div>
+              )}
 
-        {/* Ions Animation */}
-        {isRunning && !settings?.isPaused && (
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Cations moving to Cathode (Right) */}
-            {[...Array(5)].map((_, i) => (
-              <motion.div
-                key={`cat${i}`}
-                initial={{ x: '30%', y: '50%', opacity: 0 }}
-                animate={{ x: '70%', y: '50%', opacity: 1 }}
-                transition={{ duration: 2 / (settings?.speed || 1), repeat: Infinity, delay: i * 0.4 }}
-                className="absolute w-4 h-4 rounded-full bg-blue-400/50 flex items-center justify-center text-[8px] font-bold text-white"
-              >
-                +
-              </motion.div>
-            ))}
-            {/* Anions moving to Anode (Left) */}
-            {[...Array(5)].map((_, i) => (
-              <motion.div
-                key={`ani${i}`}
-                initial={{ x: '70%', y: '60%', opacity: 0 }}
-                animate={{ x: '30%', y: '60%', opacity: 1 }}
-                transition={{ duration: 2 / (settings?.speed || 1), repeat: Infinity, delay: i * 0.4 }}
-                className="absolute w-4 h-4 rounded-full bg-red-400/50 flex items-center justify-center text-[8px] font-bold text-white"
-              >
-                -
-              </motion.div>
-            ))}
+              {/* Ions Animation */}
+              {isRunning && !settings?.isPaused && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {/* Cations moving to Cathode (Right) */}
+                  {[...Array(5)].map((_, i) => (
+                    <motion.div
+                      key={`cat${i}`}
+                      initial={{ x: '30%', y: '50%', opacity: 0 }}
+                      animate={{ x: '70%', y: '50%', opacity: 1 }}
+                      transition={{ duration: 2 / (settings?.speed || 1), repeat: Infinity, delay: i * 0.4 }}
+                      className="absolute w-4 h-4 rounded-full bg-blue-400/50 flex items-center justify-center text-[8px] font-bold text-white"
+                    >
+                      +
+                    </motion.div>
+                  ))}
+                  {/* Anions moving to Anode (Left) */}
+                  {[...Array(5)].map((_, i) => (
+                    <motion.div
+                      key={`ani${i}`}
+                      initial={{ x: '70%', y: '60%', opacity: 0 }}
+                      animate={{ x: '30%', y: '60%', opacity: 1 }}
+                      transition={{ duration: 2 / (settings?.speed || 1), repeat: Infinity, delay: i * 0.4 }}
+                      className="absolute w-4 h-4 rounded-full bg-red-400/50 flex items-center justify-center text-[8px] font-bold text-white"
+                    >
+                      -
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!settings?.solution && (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs text-center px-4 pointer-events-none">
+            Kéo thả dung dịch vào đây
           </div>
         )}
       </div>
@@ -1205,17 +1481,26 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
       {/* Electrodes */}
       {/* Anode (Left) */}
       <div 
-        className={cn("absolute top-8 left-16 w-6 h-48 border border-slate-600 rounded-sm z-15 transition-colors cursor-pointer hover:ring-2 hover:ring-white/50 group", anodeColor)}
+        className={cn("absolute top-[10%] left-[20%] w-6 h-[60%] border border-slate-600 rounded-sm z-15 transition-colors duration-500 cursor-pointer hover:ring-2 hover:ring-white/50 group", anodeColor, dragOverAnode && "ring-4 ring-chem-blue")}
         onClick={onOpenSettings}
-        title="Nhấn để thay đổi điện cực"
+        title="Kéo thả kim loại vào đây để đổi điện cực"
+        onDragOver={(e) => { e.preventDefault(); setDragOverAnode(true); }}
+        onDragLeave={() => setDragOverAnode(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOverAnode(false);
+          const chem = e.dataTransfer.getData('text/plain');
+          if (chem && onDropAnode) onDropAnode(chem);
+        }}
       >
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-300">Anode (+)</div>
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-xs font-bold text-red-400 bg-slate-900/80 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-          Đổi điện cực
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-300 whitespace-nowrap pointer-events-none">Anode (+): {settings?.anode}</div>
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-xs font-bold text-red-400 bg-slate-900/80 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+          Kéo thả để đổi
         </div>
         {/* Anode Bubbles */}
         {isRunning && !settings?.isPaused && hasBubbles(settings?.solution, 'anode') && (
-          <div className="absolute inset-0 overflow-visible">
+          <div className="absolute inset-0 overflow-visible pointer-events-none">
             {[...Array(10)].map((_, i) => (
               <div key={`a${i}`} className="bubble w-2 h-2" style={{ left: '-10px', bottom: `${Math.random() * 100}%`, animationDelay: `${Math.random()}s`, animationDuration: `${(1 + Math.random()) / (settings?.speed || 1)}s` }} />
             ))}
@@ -1225,17 +1510,26 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
       
       {/* Cathode (Right) */}
       <div 
-        className={cn("absolute top-8 right-16 w-6 h-48 border border-slate-600 rounded-sm z-15 transition-colors cursor-pointer hover:ring-2 hover:ring-white/50 group", cathodeColor)}
+        className={cn("absolute top-[10%] right-[20%] w-6 h-[60%] border border-slate-600 rounded-sm z-15 transition-colors duration-500 cursor-pointer hover:ring-2 hover:ring-white/50 group", cathodeColor, dragOverCathode && "ring-4 ring-chem-blue")}
         onClick={onOpenSettings}
-        title="Nhấn để thay đổi điện cực"
+        title="Kéo thả kim loại vào đây để đổi điện cực"
+        onDragOver={(e) => { e.preventDefault(); setDragOverCathode(true); }}
+        onDragLeave={() => setDragOverCathode(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOverCathode(false);
+          const chem = e.dataTransfer.getData('text/plain');
+          if (chem && onDropCathode) onDropCathode(chem);
+        }}
       >
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-300">Cathode (-)</div>
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-xs font-bold text-blue-400 bg-slate-900/80 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-          Đổi điện cực
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-300 whitespace-nowrap pointer-events-none">Cathode (-): {settings?.cathode}</div>
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-xs font-bold text-blue-400 bg-slate-900/80 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+          Kéo thả để đổi
         </div>
         {/* Cathode Bubbles */}
         {isRunning && !settings?.isPaused && hasBubbles(settings?.solution, 'cathode') && (
-          <div className="absolute inset-0 overflow-visible">
+          <div className="absolute inset-0 overflow-visible pointer-events-none">
             {[...Array(15)].map((_, i) => (
               <div key={`c${i}`} className="bubble w-2 h-2" style={{ right: '-10px', bottom: `${Math.random() * 100}%`, animationDelay: `${Math.random()}s`, animationDuration: `${(1 + Math.random()) / (settings?.speed || 1)}s` }} />
             ))}
@@ -1247,13 +1541,18 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
             initial={{ opacity: 0, width: '100%', height: '100%' }}
             animate={{ opacity: 1, width: '120%', height: '105%', left: '-10%', bottom: '-2.5%' }}
             transition={{ duration: 10 / (settings?.speed || 1) }}
-            className={cn("absolute bottom-0 rounded-sm z-20", getPlatingColor(settings?.solution))}
+            className={cn("absolute bottom-0 rounded-sm z-20 pointer-events-none", getPlatingColor(settings?.solution))}
           />
         )}
       </div>
 
+      {/* Solution Label */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm font-bold text-white/80 z-30 drop-shadow-md pointer-events-none">
+        {settings?.solution}
+      </div>
+
       {/* Wires */}
-      <div className="absolute top-0 left-20 w-[calc(50%-20px)] h-1 bg-red-500 -translate-y-full">
+      <div className="absolute top-0 left-[20%] w-[30%] h-1 bg-red-500 -translate-y-full">
         {/* Electron flow Anode -> Battery */}
         {isRunning && !settings?.isPaused && (
           <div className="absolute inset-0 overflow-hidden">
@@ -1265,7 +1564,7 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
           </div>
         )}
       </div>
-      <div className="absolute top-0 right-20 w-[calc(50%-20px)] h-1 bg-black -translate-y-full">
+      <div className="absolute top-0 right-[20%] w-[30%] h-1 bg-black -translate-y-full">
         {/* Electron flow Battery -> Cathode */}
         {isRunning && !settings?.isPaused && (
           <div className="absolute inset-0 overflow-hidden">
@@ -1285,4 +1584,4 @@ function ElectrolysisVisual({ isRunning, reaction, reactants, settings, onOpenSe
       </div>
     </div>
   );
-}
+});
